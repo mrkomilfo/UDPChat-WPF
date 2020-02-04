@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -14,22 +15,25 @@ namespace lab1
         
         int localPort; //8001
         int remotePort; //8002
-        string host; //235.5.5.1
+        string host; //235.5.5.1 / 224.0.0.4
 
         bool online = false;
         UdpClient client;
         IPAddress groupAddress;
         string userName;
+        Dictionary<int, Tuple<int, int>> messages = new Dictionary<int, Tuple<int, int>>(); //Item1 - port, Item2 - counter
+        List<int> clients = new List<int>();
 
+        int messageId = 0;
+        bool isServer { get { return localPort == remotePort; } }
         public MainWindow()
         {
             InitializeComponent();
-
             loginButton.IsEnabled = false;
             logoutButton.IsEnabled = false;
             sendButton.IsEnabled = false;
             saveButton.IsEnabled = true;
-
+               
             loginButton.Click += loginButton_Click;
             logoutButton.Click += logoutButton_Click;
             sendButton.Click += sendButton_Click;
@@ -62,52 +66,13 @@ namespace lab1
                 }
                 if (!hostRegex.IsMatch(hostAddressTextBox.Text.Trim()))
                 {
-                    MessageBox.Show("Invalid local port");
+                    MessageBox.Show("Invalid host address");
                 }
             }           
-        }
-        private void loginButton_Click(object sender, EventArgs e)
-        {
-            if (userNameTextBox.Text.Trim().Length == 0)
-            {
-                userNameTextBox.Clear();
-                return;
-            }
-            userName = userNameTextBox.Text.Trim();
-            userNameTextBox.IsReadOnly = true;
-
-            try
-            {
-                client = new UdpClient(localPort);
-                client.JoinMulticastGroup(groupAddress, TTL);
-                Task receiveTask = new Task(ReceiveMessages);
-                receiveTask.Start();
-
-                string message = $"*{userName} joined the chat*";
-                byte[] data = Encoding.Unicode.GetBytes(message);
-                client.Send(data, data.Length, host, remotePort);
-                if (chatTextBlock.Text.Length == 0)
-                {
-                    chatTextBlock.Inlines.Add("\n");
-                }
-                chatTextBlock.Inlines.Add($"[{DateTime.Now.ToShortTimeString()}] *You joined the chat*");
-
-                localPortTextBox.IsReadOnly = true;
-                remotePortTextBox.IsReadOnly = true;
-                hostAddressTextBox.IsReadOnly = true;
-
-                saveButton.IsEnabled = false;
-                loginButton.IsEnabled = false;
-                logoutButton.IsEnabled = true;
-                sendButton.IsEnabled = true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-        }
+        }        
         private void ReceiveMessages()
         {
+            Regex leftJoinRegex = new Regex(@"\|([0-9]{1,5})(l|j)$");
             online = true;
             try
             {
@@ -116,11 +81,46 @@ namespace lab1
                     IPEndPoint remoteIp = null;
                     byte[] data = client.Receive(ref remoteIp);
                     string message = Encoding.Unicode.GetString(data);
-
-                    Dispatcher.Invoke(new Action(delegate
+                    if (isServer)
                     {
-                        chatTextBlock.Inlines.Add($"\n[{DateTime.Now.ToShortTimeString()}] {message}");                        
-                    }));
+                        if (message[0] == ' ')
+                        {
+                            if (leftJoinRegex.IsMatch(message))
+                            {
+                                Match match = leftJoinRegex.Match(message);
+                                int senderPort = int.Parse(match.Groups[1].Value);
+                                if (match.Groups[2].Value == "j")
+                                {
+                                    clients.Add(senderPort);
+                                }
+                                else if (match.Groups[2].Value == "l")
+                                {
+                                    clients.RemoveAll(p => p == senderPort);
+                                }
+                                message = leftJoinRegex.Replace(message, "").Trim();
+                                Dispatcher.Invoke(new Action(delegate
+                                {
+                                    chatTextBlock.Inlines.Add($"\n[{DateTime.Now.ToShortTimeString()}] {message}");
+                                }));
+                                byte[] newData = Encoding.Unicode.GetBytes(message);
+                                foreach (int port in clients)
+                                {
+                                    if (port != senderPort)
+                                        client.Send(newData, newData.Length, host, port);
+                                }
+                            }
+                        }                        
+                    }
+                    else {
+                        if (message[0] != ' ')
+                        {
+                            Dispatcher.Invoke(new Action(delegate
+                            {
+                                chatTextBlock.Inlines.Add($"\n[{DateTime.Now.ToShortTimeString()}] {message}");
+                            }));
+                        }
+                    }
+                    
                 }
             }
             catch (ObjectDisposedException)
@@ -185,11 +185,73 @@ namespace lab1
         {
             ExitChat();
         }
+
+        private void loginButton_Click(object sender, EventArgs e)
+        {
+            if (userNameTextBox.Text.Trim().Length == 0)
+            {
+                userNameTextBox.Clear();
+                return;
+            }
+            userName = userNameTextBox.Text.Trim();
+            userNameTextBox.IsReadOnly = true;
+
+            try
+            {
+                client = new UdpClient(localPort);
+                client.JoinMulticastGroup(groupAddress, TTL);
+                Task receiveTask = new Task(ReceiveMessages);
+                receiveTask.Start();
+
+                string message = isServer ? $"*{userName} joined the chat*" : $" *{userName} joined the chat*|{localPort}j";
+                byte[] data = Encoding.Unicode.GetBytes(message);
+                if (isServer)
+                {
+                    foreach (int port in clients)
+                    {
+                        client.Send(data, data.Length, host, port);
+                    }                    
+                }
+                else
+                {
+                    client.Send(data, data.Length, host, remotePort);
+                }
+                if (chatTextBlock.Text.Length != 0)
+                {
+                    chatTextBlock.Inlines.Add("\n");
+                }
+                chatTextBlock.Inlines.Add($"[{DateTime.Now.ToShortTimeString()}] *You joined the chat*");
+
+                localPortTextBox.IsReadOnly = true;
+                remotePortTextBox.IsReadOnly = true;
+                hostAddressTextBox.IsReadOnly = true;
+
+                saveButton.IsEnabled = false;
+                loginButton.IsEnabled = false;
+                logoutButton.IsEnabled = true;
+                sendButton.IsEnabled = true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
         private void ExitChat()
         {
-            string message = $"{userName} has left the chat";
+            string message = isServer ? $"*{userName} has left the chat*" : $" *{userName} has left the chat*|{localPort}l";
             byte[] data = Encoding.Unicode.GetBytes(message);
-            client.Send(data, data.Length, host, remotePort);
+            if (isServer)
+            {
+                foreach (int port in clients)
+                {
+                    client.Send(data, data.Length, host, port);
+                }               
+            }
+            else
+            {
+                client.Send(data, data.Length, host, remotePort);
+            }
+            chatTextBlock.Inlines.Add($"\n[{DateTime.Now.ToShortTimeString()}] *You has left the chat*");
             client.DropMulticastGroup(groupAddress);
 
             online = false;
