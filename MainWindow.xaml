@@ -6,14 +6,15 @@
         xmlns:local="clr-namespace:lab1"
         mc:Ignorable="d"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-        Title="UDPChat" Height="450" Width="800" MinHeight="240" MinWidth="600">
+        Title="UDPChat" Height="450" Width="800" MinHeight="240" MinWidth="710">
     
     <DockPanel LastChildFill="True" Margin="10,10,10,10">
         <DockPanel DockPanel.Dock="Top" VerticalAlignment="Top" LastChildFill="True">
             <Button x:Name="chmodButton" DockPanel.Dock="Left" Width="30" Height="30" Margin="0,0,25,0" Padding="0,0,0,2" Content="🗘"/>
             <StackPanel>
                 <DockPanel x:Name="optionsPanel" DockPanel.Dock="Right" VerticalAlignment="Top" Visibility="Visible" LastChildFill="True">
-                    <Button x:Name="saveButton" DockPanel.Dock="Right" Width="140" Height="30" Content="Save" />
+                    <Button x:Name="newServerButton" DockPanel.Dock="Right" Width="130" Height="30" Content="New server" />
+                    <Button x:Name="saveButton" DockPanel.Dock="Right" Width="130" Height="30" Content="Save" Margin="0,0,10,0" />
                     <TextBox x:Name="localPortTextBox"  DockPanel.Dock="Left" Width="90" Height="30" Margin="0,0,25,0" FontSize="16px" materialDesign:HintAssist.Hint="Local port"/>
                     <TextBox x:Name="remotePortTextBox" DockPanel.Dock="Left" Width="90" Height="30" Margin="0,0,25,0" FontSize="16px" materialDesign:HintAssist.Hint="Remote port"/>
                     <TextBox x:Name="hostAddressTextBox" Height="30" Margin="0,0,25,0" FontSize="16px" materialDesign:HintAssist.Hint="Host address"/>
@@ -29,12 +30,12 @@
         </DockPanel>
         <DockPanel DockPanel.Dock="Bottom" VerticalAlignment="Top">
             <Button x:Name="sendButton" DockPanel.Dock="Right" Width="140" Height="32" Content="Send"/>
-            <TextBox x:Name="messageTextBox" Width="Auto" Height="32" Margin="0,0,25,0" FontSize="16px" Padding="4,0,4,0" VerticalContentAlignment="Top"  materialDesign:HintAssist.Hint="Your message" />
+            <TextBox x:Name="messageTextBox" Width="Auto" Height="32" Margin="0,0,25,0" FontSize="16px" Padding="4,0" VerticalContentAlignment="Top"  materialDesign:HintAssist.Hint="Your message" />
             <!--TextWrapping="Wrap" AcceptsTab="True" AcceptsReturn="True"-->
         </DockPanel>
-        <Border BorderThickness="1" BorderBrush="Black" Width="Auto" Height="Auto" Margin="0,10,0,10">
+        <Border BorderThickness="1" BorderBrush="Black"  Margin="0,10">
             <ScrollViewer Name="scrollViewer">
-                <TextBlock x:Name="chatTextBlock" Width="Auto" Height="auto" Padding="8,8,8,8" FontSize="14px"/>
+                <TextBlock x:Name="chatTextBlock" Width="Auto" Height="auto" Padding="8" FontSize="14px"/>
             </ScrollViewer>
         </Border>
     </DockPanel>
